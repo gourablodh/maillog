@@ -19,29 +19,7 @@ filebeat.inputs:
               log.component: "pmg-smtp-filter"
           match:
             log.rest: [
-              '%{WORD:log.message_id}: accept mail to <%{DATA:log.receiver}> \(%{WORD:log.queue_id}\) \(rule: %{DATA:log.rule}\)'
-            ]
-          ignore_missing: true
-          ignore_failure: true
- 
-      - grok:
-          when:
-            contains:
-              log.component: "pmg-smtp-filter"
-          match:
-            log.rest: [
-              '%{WORD:log.message_id}: processing time: %{NUMBER:log.proc_seconds} seconds \(%{GREEDYDATA:log.proc_breakdown}\)'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "pmg-smtp-filter"
-          match:
-            log.rest: [
-              '%{WORD:log.message_id}: SA score=%{NUMBER:log.sa_score}/%{NUMBER:log.sa_threshold} time=%{NUMBER:log.sa_time} %{GREEDYDATA:log.sa_hits}'
+              '%{WORD:log.message_id}: accept mail to <%{EMAIL:log.receiver}>'
             ]
           ignore_missing: true
           ignore_failure: true
@@ -52,24 +30,7 @@ filebeat.inputs:
               log.component: "postfix"
           match:
             log.rest: [
-
-              '%{WORD:log.queue_id}: from=<%{DATA:log.sender}>, size=%{NUMBER:log.size}, nrcpt=%{NUMBER:log.nrcpt} \(%{DATA:log.queue_status}\)',
-
-              '%{WORD:log.queue_id}: to=<%{DATA:log.receiver}>, relay=%{DATA:log.relay}\[%{IP:log.relay_ip}\]:%{NUMBER:log.relay_port}, delay=%{NUMBER:log.delay}, delays=%{DATA:log.delays}, dsn=%{DATA:log.dsn}, status=%{WORD:log.status} \(%{GREEDYDATA:log.status_msg}\)',
-
-              '%{WORD:log.queue_id}: removed',
-
-              '%{WORD:log.queue_id}: message-id=<%{DATA:log.message_id}>',
-
-              'warning: hostname %{DATA:log.warn_host} does not resolve to address %{IP:log.warn_ip}: %{GREEDYDATA:log.warn_message}',
-
-              'Trusted TLS connection established to %{DATA:log.tls_remote_host} \[%{IP:log.tls_ip}\]:%{NUMBER:log.tls_port}: %{GREEDYDATA:log.tls_details}',
-
-              'connect from %{DATA:log.client_host} \[%{IP:log.client_ip}\]',
-
-              'disconnect from %{DATA:log.client_host} \[%{IP:log.client_ip}\] %{GREEDYDATA:log.disconnect_details}',
-
-              '%{WORD:log.queue_id}: client=%{DATA:log.client_host} \[%{IP:log.client_ip}\]'
+              '%{WORD:log.queue_id}: from=<%{EMAIL:log.sender}>, to=<%{EMAIL:log.receiver}>, relay=%{DATA:log.relay}\[%{IP:log.relay_ip}\]:%{NUMBER:log.relay_port}, delay=%{NUMBER:log.delay}, delays=%{DATA:log.delays}, dsn=%{DATA:log.dsn}, status=%{WORD:log.status} \(%{GREEDYDATA:log.status_msg}\)'
             ]
           ignore_missing: true
           ignore_failure: true
@@ -77,11 +38,10 @@ filebeat.inputs:
       - grok:
           when:
             contains:
-              log.component: "postfix/postscreen"
+              log.component: "postfix"
           match:
             log.rest: [
-              'CONNECT from \[%{IP:log.ps_client_ip}\]:%{NUMBER:log.ps_client_port} to \[%{IP:log.ps_server_ip}\]:%{NUMBER:log.ps_server_port}',
-              'PASS OLD \[%{IP:log.ps_client_ip}\]:%{NUMBER:log.ps_client_port}'
+              '%{WORD:log.queue_id}: from=<%{EMAIL:log.sender}>, size=%{NUMBER:log.size}, nrcpt=%{NUMBER:log.nrcpt} \(%{DATA:log.queue_status}\)'
             ]
           ignore_missing: true
           ignore_failure: true
@@ -89,29 +49,10 @@ filebeat.inputs:
       - grok:
           when:
             contains:
-              log.component: "postfix/scache"
+              log.component: "postfix"
           match:
             log.rest: [
-
-              'statistics: start interval %{GREEDYDATA:log.scache_interval}',
-
-              'statistics: domain lookup hits=%{NUMBER:log.domain_hits} miss=%{NUMBER:log.domain_miss} success=%{NUMBER:log.domain_success}%',
-
-              'statistics: address lookup hits=%{NUMBER:log.address_hits} miss=%{NUMBER:log.address_miss} success=%{NUMBER:log.address_success}%'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "pmgpolicy"
-          match:
-            log.rest: [
-  
-              'Received a SIG HUP',
-            
-              '%{GREEDYDATA:log.policy_message}'
+              '%{WORD:log.queue_id}: to=<%{EMAIL:log.receiver}>, relay=%{DATA:log.relay}\[%{IP:log.relay_ip}\]:%{NUMBER:log.relay_port}, delay=%{NUMBER:log.delay}, delays=%{DATA:log.delays}, dsn=%{DATA:log.dsn}, status=%{WORD:log.status} \(%{GREEDYDATA:log.status_msg}\)'
             ]
           ignore_missing: true
           ignore_failure: true
