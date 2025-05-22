@@ -1,63 +1,54 @@
-# Filebeat input: read from the Proxmox Mail log
 filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/mail.log
-    # Put custom fields at the root of the event (not nested under "fields")
-    fields_under_root: true           # allows log_type to be a top-level field:contentReference[oaicite:0]{index=0}
-    fields:
-      log_type: proxmox_mail        # custom tag to identify these events
+- type: log
+  enabled: true
+  paths:
+    - /var/log/mail.log
 
-    processors:
-      # Grok parser: extract key fields from each log message
-      - grok:
-          match:
-            message:
-              # ----- Postfix postscreen (TCP connection) -----
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} %{DATA:program}\\[%{NUMBER:pid}\\]: CONNECT from \\[%{IP:src_ip}\\]:%{NUMBER:src_port} to \\[%{IP:dst_ip}\\]:%{NUMBER:dst_port}'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} %{DATA:program}\\[%{NUMBER:pid}\\]: PASS OLD \\[%{IP:src_ip}\\]:%{NUMBER:src_port}'
+  processors:
+  - dissect:
+      tokenizer: "%{timestamp} %{+timestamp} %{hostname} %{component}[ %{pid} ]: %{rest}"
+      field: "message"
+      target_prefix: "log"
+      ignore_failure: true
 
-              # ----- Postfix SMTPD (receive) -----
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/smtpd\\[%{NUMBER:pid}\\]: warning: %{GREEDYDATA:warning_msg}'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/smtpd\\[%{NUMBER:pid}\\]: connect from %{DATA:client_host}\\[%{IP:client_ip}\\]'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/smtpd\\[%{NUMBER:pid}\\]: disconnect from %{DATA:client_host}\\[%{IP:client_ip}\\] %{GREEDYDATA:disconnect_info}'
+    - dissect:
+        when:
+          contains:
+            component: "postfix"
+        tokenizer: "%{action} %{queue_id}: %{details}"
+        field: "rest"
+        target_prefix: ""
 
-              # ----- Proxmox Mail Policy Daemon -----
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmgpolicy(?:\\[%{NUMBER:pid}\\])?: %{GREEDYDATA:policy_msg}'
+    # Separate dissect for 'from=' lines
+    - dissect:
+        when:
+          contains:
+            action: "from="
+        tokenizer: "from=<%{sender}>,%{after_from}"
+        field: "details"
+        target_prefix: ""
 
-              # ----- Postfix cleanup/qmgr/local/lmtp -----
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/cleanup\\[%{NUMBER:pid}\\]: %{WORD:queue_id}: message-id=<%{DATA:message_id}>'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/qmgr\\[%{NUMBER:pid}\\]: %{WORD:queue_id}: from=<%{DATA:sender}>, size=%{NUMBER:size}, nrcpt=%{NUMBER:nrcpt},? (?:.*status=%{WORD:status})?'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/smtp\\[%{NUMBER:pid}\\]: (?:Connection established to %{HOSTNAME:relay_host}\\[%{IP:relay_ip}\\]:%{NUMBER:relay_port}.*)?'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/error\\[%{NUMBER:pid}\\]: %{WORD:queue_id}: to=<%{DATA:recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}(?: \\(%{GREEDYDATA:status_msg}\\))?'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/local\\[%{NUMBER:pid}\\]: %{WORD:queue_id}: to=<%{DATA:recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}(?: \\(%{GREEDYDATA:status_msg}\\))?'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} postfix/lmtp\\[%{NUMBER:pid}\\]: %{WORD:queue_id}: to=<%{DATA:recipient}>, orig to=<%{DATA:orig_recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}(?: \\(%{GREEDYDATA:status_msg}\\))?'
+    # Separate dissect for 'to=' lines
+    - dissect:
+        when:
+          contains:
+            action: "to="
+        tokenizer: "to=<%{receiver}>,%{after_to}"
+        field: "details"
+        target_prefix: ""
 
-              # ----- PMG SMTP Filter (spam/virus scanning) -----
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmg-smtp-filter\\[%{NUMBER:pid}\\]: %{DATA:queue_id}: SA score=%{NUMBER:spam_score}/%{NUMBER:spam_threshold} time=%{NUMBER:sa_time} bayes=%{NUMBER:bayes_score} autolearn=%{WORD:sa_autolearn} autolearn_force=%{WORD:sa_autolearn_force} hits=%{GREEDYDATA:sa_hits}'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmg-smtp-filter\\[%{NUMBER:pid}\\]: %{DATA:queue_id}: new mail message-id=<%{DATA:message_id}>'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmg-smtp-filter\\[%{NUMBER:pid}\\]: %{DATA:queue_id}: %{WORD:pmg_action} mail to <%{DATA:recipient}> \\(SCDF%{DATA:scdf_id}\\) \\(rule: %{DATA:rule}\\)'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmg-smtp-filter\\[%{NUMBER:pid}\\]: %{DATA:queue_id}: processing time: %{NUMBER:total_time} seconds \\(%{NUMBER:proc_time1}, %{NUMBER:proc_time2}, %{NUMBER:proc_time3}\\)'
-              - '%{TIMESTAMP_ISO8601:log_timestamp} %{HOSTNAME:host} pmg-smtp-filter\\[%{NUMBER:pid}\\]: %{DATA:queue_id}: custom check error: %{GREEDYDATA:custom_error}'
-          ]
-          # If parsing fails, tag the event for troubleshooting
-          on_failure:
-            - add_tags:
-                tags: ["grok_failure"]
+    - dissect:
+        when:
+          contains:
+            details: "relay="
+        tokenizer: "%{queue_id_2}: to=<%{to}>,%{+to} relay=%{relay}[%{relay_ip}]:%{relay_port}, delay=%{delay}, delays=%{delays}, dsn=%{dsn}, status=%{status} (%{status_msg})"
+        field: "rest"
+        target_prefix: "smtp"
 
-      # Date processor: use the parsed log timestamp as @timestamp
-      - date:
-          field: log_timestamp
-          target_field: "@timestamp"
-          formats:
-            - "ISO8601"
-      # Cleanup: remove the raw log_timestamp field (we have @timestamp now)
-      - remove_fields:
-          fields: ["log_timestamp"]
+    - rename:
+        fields:
+          - from: "message"
+            to: "log.original"
 
-# Output to Elasticsearch/Wazuh indexer
-output.elasticsearch:
-  hosts: ["https://wazuh-indexer:9200"]  # update with your Wazuh/ES endpoint
-  username: "elastic"
-  password: "YOUR_PASSWORD"              # replace with appropriate credentials
+    - drop_fields:
+        fields: ["after_from", "after_to", "prefix"]
