@@ -1,68 +1,15 @@
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/mail.log
-
-    processors:
-      - grok:
-          match:
-            message: [
-              '%{TIMESTAMP_ISO8601:log.timestamp} %{HOSTNAME:log.hostname} %{DATA:log.component}\[%{NUMBER:log.pid}\]: %{GREEDYDATA:log.rest}'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "pmg-smtp-filter"
-          match:
-            log.rest: [
-              '%{WORD:log.message_id}: accept mail to <%{EMAIL:log.receiver}>'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "postfix"
-          match:
-            log.rest: [
-              '%{WORD:log.queue_id}: from=<%{EMAIL:log.sender}>, to=<%{EMAIL:log.receiver}>, relay=%{DATA:log.relay}\[%{IP:log.relay_ip}\]:%{NUMBER:log.relay_port}, delay=%{NUMBER:log.delay}, delays=%{DATA:log.delays}, dsn=%{DATA:log.dsn}, status=%{WORD:log.status} \(%{GREEDYDATA:log.status_msg}\)'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "postfix"
-          match:
-            log.rest: [
-              '%{WORD:log.queue_id}: from=<%{EMAIL:log.sender}>, size=%{NUMBER:log.size}, nrcpt=%{NUMBER:log.nrcpt} \(%{DATA:log.queue_status}\)'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - grok:
-          when:
-            contains:
-              log.component: "postfix"
-          match:
-            log.rest: [
-              '%{WORD:log.queue_id}: to=<%{EMAIL:log.receiver}>, relay=%{DATA:log.relay}\[%{IP:log.relay_ip}\]:%{NUMBER:log.relay_port}, delay=%{NUMBER:log.delay}, delays=%{DATA:log.delays}, dsn=%{DATA:log.dsn}, status=%{WORD:log.status} \(%{GREEDYDATA:log.status_msg}\)'
-            ]
-          ignore_missing: true
-          ignore_failure: true
-
-      - rename:
-          fields:
-            - from: "message"
-              to:   "log.original"
-
-      - drop_fields:
-          fields:
-            - "log.rest"
-            - "message"
+processors:
+  - grok:
+      pattern_definitions:
+        TIMESTAMP_ISO8601: '%{YEAR}-%{MONTHNUM}-%{MONTHDAY}T%{HOUR}:%{MINUTE}:%{SECOND}\.%{INT}\+%{INT}:%{INT}'
+      patterns:
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: from=<%{DATA:sender}>, size=%{NUMBER:size}, nrcpt=%{NUMBER:nrcpt}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: to=<%{DATA:recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{NOTSPACE:program}\[%{NUMBER:pid}\]: %{NOTSPACE:queue_id}: from=<%{DATA:sender}>, size=%{NUMBER:size}, nrcpt=%{NUMBER:nrcpt}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: to=<%{DATA:recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: message-id=<%{DATA:message_id}>'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} pmg-smtp-filter \[%{NUMBER:pid}\]: %{DATA:queue_id}: %{WORD:filter_action} mail to <%{DATA:recipient}> \(%{DATA:orig_queue_id}\) \(rule: %{DATA:rule}\)'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} pmg-smtp-filter \[%{NUMBER:pid}\]: %{DATA:queue_id}: SA score=%{DATA:spam_score}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} pmg-smtp-filter \[%{NUMBER:pid}\]: %{DATA:queue_id}: processing time: %{NUMBER:processing_time} seconds'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} pmgpolicy \[%{NUMBER:pid}\]: %{GREEDYDATA:message}'
+          -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{NOTSPACE:program}\[%{NUMBER:pid}\]: %{NOTSPACE:queue_id}: from=<%{DATA:sender}>,.*'
