@@ -1,8 +1,14 @@
-processors:
-  - grok:
-      pattern_definitions:
-        TIMESTAMP_ISO8601: '%{YEAR}-%{MONTHNUM}-%{MONTHDAY}T%{HOUR}:%{MINUTE}:%{SECOND}\.%{INT}\+%{INT}:%{INT}'
-      patterns:
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/mail.log
+
+  processors:
+    - grok:
+        pattern_definitions:
+          TIMESTAMP_ISO8601: '%{YEAR}-%{MONTHNUM}-%{MONTHDAY}T%{HOUR}:%{MINUTE}:%{SECOND}\.%{INT}\+%{INT}:%{INT}'
+        patterns:
           -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: from=<%{DATA:sender}>, size=%{NUMBER:size}, nrcpt=%{NUMBER:nrcpt}'
           -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{DATA:service}\s+\[%{NUMBER:pid}\]: %{DATA:queue_id}: to=<%{DATA:recipient}>, relay=%{DATA:relay}, delay=%{NUMBER:delay}, delays=%{DATA:delays}, dsn=%{DATA:dsn}, status=%{WORD:status}'
           -  '%{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:host} %{NOTSPACE:program}\[%{NUMBER:pid}\]: %{NOTSPACE:queue_id}: from=<%{DATA:sender}>, size=%{NUMBER:size}, nrcpt=%{NUMBER:nrcpt}'
