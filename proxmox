@@ -1,0 +1,97 @@
+<decoder name="pmg-smtp-newmail">
+  <type>syslog</type>
+  <program_name>pmg-smtp-filter</program_name>
+  <regex>(\S+): new mail message-id=&lt;([^&gt;]+)&gt;</regex>
+  <order>queue_id,message_id</order>
+  <accumulate/>
+</decoder>
+<decoder name="pmg-smtp-to" parent="pmg-smtp-newmail">
+  <regex>(\S+):\s+to=&lt;([^&gt;]+)&gt;(?:\s+\((\S+)\))?</regex>
+  <order>queue_id,receiver,orig_queue</order>
+</decoder>
+
+<decoder name="postfix-from" parent="postfix">
+  <prematch>from=&lt;</prematch>
+  <regex>postfix/[^ ]+\[\d+\]:\s+(\S+): from=&lt;([^&gt;]+)&gt;</regex>
+  <order>queue_id,sender</order>
+</decoder>
+
+<decoder name="postfix-to" parent="postfix">
+  <prematch>to=&lt;</prematch>
+  <regex>postfix/[^ ]+\[\d+\]:\s+(\S+): to=&lt;([^&gt;]+)&gt;(?:, orig_to=&lt;([^&gt;]+)&gt;)?</regex>
+  <order>queue_id,receiver,orig_to</order>
+</decoder>
+
+<decoder name="postfix-status" parent="postfix">
+  <prematch>relay=</prematch>
+  <regex>postfix/smtp\[\d+\]:\s+(\S+):.* relay=([^,]+),.* status=(\w+)</regex>
+  <order>queue_id,relay,status</order>
+</decoder>
+
+<decoder name="postfix-tls" parent="postfix">
+  <prematch>TLSv</prematch>
+  <regex>TLSv([0-9\.]+) with cipher (\S+)</regex>
+  <order>tls_version,tls_cipher</order>
+</decoder>
+<decoder name="pmgpolicy-spf">
+  <program_name>pmgpolicy</program_name>
+  <regex>SPF says (pass|fail)</regex>
+  <order>spf_status</order>
+</decoder>
+
+<decoder name="pmg-smtp-dkim" parent="pmg-smtp-filter">
+  <prematch>DKIM-Signature</prematch>
+  <regex>DKIM-Signature disabling Signing: (.+)$</regex>
+  <order>dkim_info</order>
+</decoder>
+
+<decoder name="pmg-smtp-newmail">
+  <type>syslog</type>
+  <program_name>pmg-smtp-filter</program_name>
+  <regex>(\S+): new mail message-id=&lt;([^&gt;]+)&gt;#012</regex>
+  <order>queue_id,message_id</order>
+  <accumulate/>
+</decoder>
+
+<decoder name="pmg-smtp-to" parent="pmg-smtp-newmail">
+  <regex>(\S+):\s+to=&lt;([^&gt;]+)&gt;(?:\s+\((\S+)\))?</regex>
+  <order>queue_id,receiver,orig_queue</order>
+</decoder>
+
+<decoder name="pmgpolicy-spf">
+  <type>syslog</type>
+  <program_name>pmgpolicy</program_name>
+  <regex>SPF says (pass|fail)</regex>
+  <order>spf_status</order>
+</decoder>
+
+<decoder name="postfix-from" parent="postfix">
+  <prematch>from=&lt;</prematch>
+  <regex>postfix/[^ ]+\[\d+\]:\s+(\S+): from=&lt;([^&gt;]+)&gt;</regex>
+  <order>queue_id,sender</order>
+</decoder>
+
+<decoder name="postfix-to" parent="postfix">
+  <prematch>to=&lt;</prematch>
+  <regex>postfix/[^ ]+\[\d+\]:\s+(\S+): to=&lt;([^&gt;]+)&gt;(?:, orig_to=&lt;([^&gt;]+)&gt;)?</regex>
+  <order>queue_id,receiver,orig_to</order>
+</decoder>
+
+<decoder name="postfix-status" parent="postfix">
+  <prematch>relay=</prematch>
+  <regex>postfix/smtp\[\d+\]:\s+(\S+):.* relay=([^,]+),.* status=(\w+)</regex>
+  <order>queue_id,relay,status</order>
+</decoder>
+
+<decoder name="postfix-tls" parent="postfix">
+  <prematch>TLSv</prematch>
+  <regex>TLSv([0-9\.]+) with cipher (\S+)</regex>
+  <order>tls_version,tls_cipher</order>
+</decoder>
+
+<!-- Additional decoders for DKIM, etc. -->
+<decoder name="pmg-smtp-dkim" parent="pmg-smtp-filter">
+  <prematch>DKIM-Signature</prematch>
+  <regex>DKIM-Signature disabling Signing: (.+)$</regex>
+  <order>dkim_info</order>
+</decoder>
