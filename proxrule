@@ -1,67 +1,77 @@
 <group name="custom_pmg_rules">
   <!-- 1. New mail accepted by PMG SMTP Filter -->
   <rule id="100500" level="3">
-    <decoded_as>pmg-smtp-newmail</decoded_as>
-    <field name="queue_id">.+</field>
-    <field name="message_id">.+</field>
+    <program_name>pmg-smtp-filter</program_name>
+    <regex>^.*?(\S+):\s*new mail message-id=&lt;([^&gt;]+)&gt;.*$</regex>
+    <order>queue_id,message_id</order>
     <description>New mail queued: ${message_id} (queue ${queue_id})</description>
   </rule>
 
   <!-- 2. Recipient accepted -->
   <rule id="100501" level="3">
-    <decoded_as>pmg-smtp-to</decoded_as>
-    <field name="queue_id">.+</field>
-    <field name="receiver">.+@.+</field>
-    <field name="orig_queue">.+</field>
+    <program_name>pmg-smtp-filter</program_name>
+    <regex>^.*?(\S+):\s*to=&lt;([^&gt;]+)&gt;(?:\s+\((\S+)\))?.*$</regex>
+    <order>queue_id,receiver,orig_queue</order>
     <description>Mail ${queue_id} destined for ${receiver} (orig_queue: ${orig_queue})</description>
   </rule>
 
   <!-- 3. Envelope sender captured -->
   <rule id="100502" level="3">
-    <decoded_as>postfix-from</decoded_as>
-    <field name="queue_id">.+</field>
-    <field name="sender">.+@.+</field>
+    <program_name>postfix</program_name>
+    <regex>^.*?postfix\/[^ ]+
+
+\[\d+\]
+
+:\s+(\S+):\s*from=&lt;([^&gt;]+)&gt;.*$</regex>
+    <order>queue_id,sender</order>
     <description>Mail ${queue_id} from ${sender}</description>
   </rule>
 
   <!-- 4a. Delivery status: deferred -->
   <rule id="100510" level="7">
-    <decoded_as>postfix-status</decoded_as>
-    <field name="status">^deferred$</field>
-    <field name="queue_id">.+</field>
-    <field name="relay">.+</field>
+    <program_name>postfix</program_name>
+    <regex>^.*?postfix\/smtp
+
+\[\d+\]
+
+:\s+(\S+):.*\s+relay=([^,]+),.*\s+status=deferred.*$</regex>
+    <order>queue_id,relay</order>
     <description>Email delivery deferred (queue:${queue_id}) via ${relay}</description>
   </rule>
 
   <!-- 4b. Delivery status: bounced -->
   <rule id="100511" level="9">
-    <decoded_as>postfix-status</decoded_as>
-    <field name="status">^bounced$</field>
-    <field name="queue_id">.+</field>
-    <field name="relay">.+</field>
+    <program_name>postfix</program_name>
+    <regex>^.*?postfix\/smtp
+
+\[\d+\]
+
+:\s+(\S+):.*\s+relay=([^,]+),.*\s+status=bounced.*$</regex>
+    <order>queue_id,relay</order>
     <description>Email bounced (queue:${queue_id}) via ${relay}</description>
   </rule>
 
   <!-- 5. SPF failure -->
   <rule id="100520" level="10">
-    <decoded_as>pmgpolicy-spf</decoded_as>
-    <field name="spf_status">^fail$</field>
-    <description>SPF check FAILED (spf_status=${spf_status})</description>
+    <program_name>pmgpolicy</program_name>
+    <regex>^.*?SPF says fail.*$</regex>
+    <description>SPF check FAILED</description>
     <options>alert_by_email</options>
   </rule>
 
   <!-- 6. DKIM signing issues -->
   <rule id="100530" level="8">
-    <decoded_as>pmg-smtp-dkim</decoded_as>
-    <field name="dkim_info">.+</field>
+    <program_name>pmg-smtp-filter</program_name>
+    <regex>^.*?DKIM-Signature disabling Signing:\s*(.+)$</regex>
+    <order>dkim_info</order>
     <description>DKIM signing issue: ${dkim_info}</description>
   </rule>
 
   <!-- 7. Weak TLS negotiation -->
   <rule id="100540" level="6">
-    <decoded_as>postfix-tls</decoded_as>
-    <field name="tls_version">^(1\.0|1\.1)$</field>
-    <field name="tls_cipher">.+</field>
+    <program_name>postfix</program_name>
+    <regex>^.*?TLSv(1\.0|1\.1)\s+with cipher\s+(\S+).*$</regex>
+    <order>tls_version,tls_cipher</order>
     <description>Weak TLS version (${tls_version}) (cipher: ${tls_cipher})</description>
   </rule>
 </group>
