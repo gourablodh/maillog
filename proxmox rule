@@ -1,0 +1,51 @@
+<!-- 1. New mail accepted by PMG SMTP Filter -->
+<rule id="100500" level="3">
+  <decoded_as>pmg-smtp-newmail</decoded_as>
+  <description>New mail queued: ${message_id} (queue ${queue_id})</description>
+</rule>
+
+<!-- 2. Recipient accepted -->
+<rule id="100501" level="3">
+  <decoded_as>pmg-smtp-to</decoded_as>
+  <description>Mail ${queue_id} destined for ${receiver} (orig_queue: ${orig_queue})</description>
+</rule>
+
+<!-- 3. Envelope sender captured -->
+<rule id="100502" level="3">
+  <decoded_as>postfix-from</decoded_as>
+  <description>Mail ${queue_id} from ${sender}</description>
+</rule>
+
+<!-- 4. Delivery status: track deferred or bounced -->
+<rule id="100510" level="7">
+  <decoded_as>postfix-status</decoded_as>
+  <field name="status">deferred</field>
+  <description>Email delivery deferred (queue:${queue_id}) from ${sender} to ${receiver} via ${relay}</description>
+</rule>
+
+<rule id="100511" level="9">
+  <decoded_as>postfix-status</decoded_as>
+  <field name="status">bounced</field>
+  <description>Email bounced (queue:${queue_id}) from ${sender} to ${receiver}</description>
+</rule>
+
+<!-- 5. SPF failure -->
+<rule id="100520" level="10">
+  <decoded_as>pmgpolicy-spf</decoded_as>
+  <field name="spf_status">fail</field>
+  <description>SPF check FAILED for message ${message_id} (queue:${queue_id}) from ${sender} to ${receiver}</description>
+  <options>alert_by_email</options>
+</rule>
+
+<!-- 6. DKIM signing issues -->
+<rule id="100530" level="8">
+  <decoded_as>pmg-smtp-dkim</decoded_as>
+  <description>DKIM signing issue on ${message_id} (queue:${queue_id}): ${dkim_info}</description>
+</rule>
+
+<!-- 7. Weak TLS negotiation -->
+<rule id="100540" level="6">
+  <decoded_as>postfix-tls</decoded_as>
+  <field name="tls_version">1\.0|1\.1</field>
+  <description>Weak TLS version (${tls_version}) used for message ${queue_id}</description>
+</rule>
